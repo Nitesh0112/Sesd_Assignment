@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LMS - Design Patterns Demo (Nitesh/CS405)</title>
+    <style>
+        /* General Styles */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; padding: 20px; color: #333; }
+        h2 { color: #007bff; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+        .section { background: #ffffff; padding: 20px; margin: 15px 0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .course-box, .student-box { border: 1px solid #e0e0e0; padding: 15px; margin: 10px 0; border-radius: 6px; background: #f9f9f9; }
+        .course-box strong { color: #28a745; }
+        .student-box strong { color: #dc3545; }
+
+        /* Button and Input Styles */
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; border: none; border-radius: 4px; transition: background 0.3s; }
+        .action-button { background-color: #007bff; color: white; }
+        .action-button:hover { background-color: #0056b3; }
+        select { padding: 8px; border-radius: 4px; border: 1px solid #ccc; }
+
+        /* Notification Log */
+        .alert-log { background: #fff3cd; color: #856404; padding: 10px; border-radius: 4px; margin-top: 10px; border: 1px solid #ffeeba; }
+        #grading-output { margin-top: 15px; font-weight: bold; color: #28a745; }
+    </style>
+</head>
+<body>
+
+    <h2>Learning Management System (LMS)</h2>
+    <p>Demonstrating **Observer**, **Strategy**, and **Command** Design Patterns.</p>
+
+    <div class="section">
+        <h3>📢 System Notifications Log (Observer Pattern)</h3>
+        <div id="notificationLog" class="alert-log">System Ready. Notifications will appear here...</div>
+        <button class="action-button" onclick="lmsApp.publishUpdate()">Publish New Assignment (Notifies Student **Nitesh**)</button>
+    </div>
+
+    <div class="section">
+        <h3>📐 Grading Strategy (Strategy Pattern)</h3>
+        <p>Current Score: <span id="currentScore">85</span>/100</p>
+        <select id="gradingStrategySelect">
+            <option value="percentage">Percentage Grading (e.g., 85%)</option>
+            <option value="cgpa">CGPA Grading (e.g., 3.4)</option>
+            <option value="passfail">Pass/Fail Grading (e.g., Pass)</option>
+        </select>
+        <button class="action-button" onclick="lmsApp.applyGradingStrategy()">Apply Grading Strategy</button>
+        <div id="grading-output">Result: </div>
+    </div>
+
+    <div class="section">
+        <h3>⚡ Student Actions (Command Pattern)</h3>
+        <div class="course-box">
+            <strong>Course: CS405 - Software Engineering & System Design</strong>
+        </div>
+        <div class="student-box">
+            <strong>Student: Nitesh</strong>
+        </div>
+        <button class="action-button" onclick="lmsApp.executeCommand('enroll')">Enroll Course (Command)</button>
+        <button class="action-button" onclick="lmsApp.executeCommand('drop')">Drop Course (Command)</button>
+        <button class="action-button" onclick="lmsApp.executeCommand('submit')">Submit Assignment (Command)</button>
+    </div>
+
+    <script>
+        // --- Utility for UI updates ---
+        function logNotification(message) {
+            const logElement = document.getElementById('notificationLog');
+            const newEntry = document.createElement('div');
+            newEntry.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logElement.prepend(newEntry);
+            // Limit log entries to keep the view clean
+            while (logElement.children.length > 5) {
+                logElement.removeChild(logElement.lastChild);
+            }
+        }
+
+        // =================================================================
+        // 1. OBSERVER PATTERN (Subject: Course, Observer: Student)
+        // =================================================================
+
+        class Course {
+            constructor(name) {
+                this.name = name;
+                this.students = [];
+            }
+
+            addStudent(student) {
+                if (!this.students.includes(student)) {
+                    this.students.push(student);
+                    logNotification(`Student ${student.name} is now observing ${this.name}.`);
+                }
+            }
+
+            removeStudent(student) {
+                const index = this.students.indexOf(student);
+                if (index > -1) {
+                    this.students.splice(index, 1);
+                    logNotification(`Student ${student.name} stopped observing ${this.name}.`);
+                }
+            }
+
+            notify(update) {
+                logNotification(`<strong>${this.name} published: ${update}</strong>`);
+                this.students.forEach(student => student.update(this.name, update));
+            }
+
+            publishAssignment(name) {
+                this.notify(`New Assignment: ${name} is due next week.`);
+            }
+        }
+
+        class Student {
+            constructor(name) {
+                this.name = name;
+            }
+
+            update(courseName, status) {
+                logNotification(`[${this.name}'s Inbox]: Received update from ${courseName} - ${status}`);
+            }
+        }
+
+        // =================================================================
+        // 2. STRATEGY PATTERN (GradingStrategy)
+        // =================================================================
+
+        class GradingStrategy {
+            calculate(score, maxScore) {
+                throw new Error("calculate() must be implemented by concrete strategies.");
+            }
+        }
+
+        class PercentageGrading extends GradingStrategy {
+            calculate(score, maxScore) {
+                const percent = (score / maxScore) * 100;
+                return `${percent.toFixed(2)}%`;
+            }
+        }
+
+        class CGPAGrading extends GradingStrategy {
+            calculate(score, maxScore) {
+                const percent = (score / maxScore) * 100;
+                if (percent >= 90) return '4.0';
+                if (percent >= 80) return '3.4';
+                if (percent >= 70) return '2.8';
+                return 'Below 2.8';
+            }
+        }
+
+        class PassFailGrading extends GradingStrategy {
+            calculate(score, maxScore) {
+                const percent = (score / maxScore) * 100;
+                return percent >= 60 ? 'PASS' : 'FAIL';
+            }
+        }
+
+        // =================================================================
+        // 3. COMMAND PATTERN (Actions)
+        // =================================================================
+
+        class Command {
+            execute() {
+                throw new Error("execute() must be implemented by concrete commands.");
+            }
+        }
+
+        class EnrollCommand extends Command {
+            constructor(student, course) {
+                super();
+                this.student = student;
+                this.course = course;
+            }
+            execute() {
+                this.course.addStudent(this.student);
+                logNotification(`[Command Executed] ${this.student.name} **ENROLLED** in ${this.course.name}.`);
+            }
+        }
+
+        class DropCommand extends Command {
+            constructor(student, course) {
+                super();
+                this.student = student;
+                this.course = course;
+            }
+            execute() {
+                this.course.removeStudent(this.student);
+                logNotification(`[Command Executed] ${this.student.name} **DROPPED** ${this.course.name}.`);
+            }
+        }
+
+        class SubmitCommand extends Command {
+            constructor(student, assignment) {
+                super();
+                this.student = student;
+                this.assignment = assignment;
+            }
+            execute() {
+                logNotification(`[Command Executed] ${this.student.name} **SUBMITTED** assignment: ${this.assignment}.`);
+            }
+        }
+
+        // =================================================================
+        // LMS APPLICATION CONTEXT
+        // =================================================================
+
+        class LMS {
+            constructor() {
+                // Course subject (The Subject in Observer Pattern)
+                this.cs405 = new Course("CS405 - Software Engineering & System Design");
+                // Student object (The Observer and Command Receiver)
+                this.studentNitesh = new Student("Nitesh"); 
+                
+                // Strategy instances
+                this.gradingStrategies = {
+                    percentage: new PercentageGrading(),
+                    cgpa: new CGPAGrading(),
+                    passfail: new PassFailGrading(),
+                };
+
+                // Initial Setup: Auto-enroll Nitesh
+                this.cs405.addStudent(this.studentNitesh);
+            }
+
+            // --- Observer Interaction ---
+            publishUpdate() {
+                this.cs405.publishAssignment("UML Modeling Project");
+            }
+
+            // --- Strategy Interaction ---
+            applyGradingStrategy() {
+                const score = parseFloat(document.getElementById('currentScore').textContent);
+                const maxScore = 100;
+                const strategyType = document.getElementById('gradingStrategySelect').value;
+                
+                const strategy = this.gradingStrategies[strategyType];
+                
+                if (strategy) {
+                    const result = strategy.calculate(score, maxScore);
+                    document.getElementById('grading-output').innerHTML = `Result: **${result}** (using ${strategyType} strategy)`;
+                }
+            }
+
+            // --- Command Interaction ---
+            executeCommand(commandType) {
+                let command;
+                
+                // Reference the Nitesh student object
+                const student = this.studentNitesh; 
+                const course = this.cs405;
+
+                switch (commandType) {
+                    case 'enroll':
+                        command = new EnrollCommand(student, course);
+                        break;
+                    case 'drop':
+                        command = new DropCommand(student, course);
+                        break;
+                    case 'submit':
+                        command = new SubmitCommand(student, "Architecture Review Report");
+                        break;
+                    default:
+                        logNotification("Invalid command type.");
+                        return;
+                }
+
+                command.execute();
+            }
+        }
+
+        // Instantiate the application and make it globally accessible for HTML onclick handlers
+        const lmsApp = new LMS();
+
+        // Initial setup
+        document.addEventListener('DOMContentLoaded', () => {
+            lmsApp.applyGradingStrategy();
+        });
+
+    </script>
+</body>
+</html>
